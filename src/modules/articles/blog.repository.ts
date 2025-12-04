@@ -84,99 +84,99 @@ export class BlogRepository{
     }
     //this method implements query for returning specific blogs with author information
     //used in findOne() method in service
-async findByIdWithAuthor(id: string) {
-  const bId = MongoIdValidator(id);
+  async findByIdWithAuthor(id: string) {
+    const bId = MongoIdValidator(id);
 
-  const res = await this.db
-    .collection(this.collection)
-    .aggregate([
-      { $match: { _id: bId } },
-      {
-        $lookup: {
-          from: "users",
-          let: { authorId: "$authorId" },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $eq: [
-                    "$_id",
-                    {
-                      $cond: [
-                        { $eq: [{ $type: "$$authorId" }, "string"] },
-                        { $toObjectId: "$$authorId" },
-                        "$$authorId"
-                      ]
-                    }
-                  ]
-                }
-              }
-            },
-            { $project: { fullname: 1, username: 1, dpUri: 1 } }
-          ],
-          as: "author"
-        }
-      },
-      { $unwind: { path: "$author", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "comments",
-          let: { blogId: "$_id" },
-          pipeline: [
-            { $match: { $expr: { $eq: ["$blogId", { $toString: "$$blogId" }] } } },
-            {
-              $lookup: {
-                from: "users",
-                let: { uid: "$userId" },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: {
-                        $eq: ["$_id", { $toObjectId: "$$uid" }]
+    const res = await this.db
+      .collection(this.collection)
+      .aggregate([
+        { $match: { _id: bId } },
+        {
+          $lookup: {
+            from: "users",
+            let: { authorId: "$authorId" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: [
+                      "$_id",
+                      {
+                        $cond: [
+                          { $eq: [{ $type: "$$authorId" }, "string"] },
+                          { $toObjectId: "$$authorId" },
+                          "$$authorId"
+                        ]
                       }
-                    }
-                  },
-                  { $project: { fullname: 1, username: 1, dpUri: 1 } }
-                ],
-                as: "user"
-              }
-            },
-            { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } }
-          ],
-          as: "comments"
+                    ]
+                  }
+                }
+              },
+              { $project: { fullname: 1, username: 1, dpUri: 1 } }
+            ],
+            as: "author"
+          }
+        },
+        { $unwind: { path: "$author", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "comments",
+            let: { blogId: "$_id" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$blogId", { $toString: "$$blogId" }] } } },
+              {
+                $lookup: {
+                  from: "users",
+                  let: { uid: "$userId" },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $eq: ["$_id", { $toObjectId: "$$uid" }]
+                        }
+                      }
+                    },
+                    { $project: { fullname: 1, username: 1, dpUri: 1 } }
+                  ],
+                  as: "user"
+                }
+              },
+              { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } }
+            ],
+            as: "comments"
+          }
+        },
+
+        // Add comment count dynamically
+        //{ $addFields: { commentsCount: { $size: "$comments" } } },
+
+        // Project necessary fields
+        {
+          $project: {
+            status: 1,
+            title: 1,
+            content: 1,
+            summary: 1,
+            tags: 1,
+            likesCount: 1,
+            commentsCount: 1,
+            "author.fullname": 1,
+            "author.username": 1,
+            "author.dpUri": 1,
+            "comments._id": 1,
+            "comments.comment": 1,
+            "comments.replyCount":1,
+            "comments.userId": 1,
+            "comments.user.fullname": 1,
+            "comments.user.username": 1,
+            "comments.user.dpUri": 1
+          }
         }
-      },
+      ])
+      .toArray();
 
-      // Add comment count dynamically
-      //{ $addFields: { commentsCount: { $size: "$comments" } } },
-
-      // Project necessary fields
-      {
-        $project: {
-          status: 1,
-          title: 1,
-          content: 1,
-          summary: 1,
-          tags: 1,
-          likesCount: 1,
-          commentsCount: 1,
-          "author.fullname": 1,
-          "author.username": 1,
-          "author.dpUri": 1,
-          "comments._id": 1,
-          "comments.comment": 1,
-          "comments.replyCount":1,
-          "comments.userId": 1,
-          "comments.user.fullname": 1,
-          "comments.user.username": 1,
-          "comments.user.dpUri": 1
-        }
-      }
-    ])
-    .toArray();
-
-  return res;
-}
+    return res;
+  }
 
   //this method implements query for removing a blog
   //used in remove() method in service
